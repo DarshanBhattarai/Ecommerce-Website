@@ -1,25 +1,57 @@
 import bcrypt from "bcrypt";
 import User from "../model/User.js";
+import { hashPassword } from "../utils/utility.js";
+import { otpGenerate } from "../utils/otp.js";
+import { sendMail } from "../utils/mail.js";
 
 const register = async (data) => {
-  const hashPassword = await bcrypt.hash(data.password, 10);
-
+  const hashedPassword = await hashPassword(data.password);
   const email = data.email;
   const userExist = await User.findOne({ email });
 
   if (userExist) {
-    throw new Error("User already exists");
+    throw new Error("user already exist");
   }
 
-  const user = await User.create({
-    name: data.name,
-    email: data.email,
-    password: hashPassword,
+  return await User.create({
+    email: email,
+    password: hashedPassword,
     phone: data.phone,
-    role: ["customer"],
+    name: data.name,
   });
-
-  return user; // return created user if needed
 };
 
-export { register };
+const login = async (data) => {
+  const doEmailExist = await User.find({ email: data.email });
+
+  if (!doEmailExist) {
+    throw new Error("user does not exist");
+  }
+  if (doEmailExist.length === 0) {
+    throw new Error("user does not exist");
+  }
+  const dbPassword = doEmailExist[0].password;
+  const isPasswordMatch = bcrypt.compareSync(data.password, dbPassword);
+  if (isPasswordMatch) {
+    return doEmailExist[0];
+  } else {
+    throw new Error("password does not match");
+  }
+};
+
+const forgetPassword = async (data) => {
+  const doEmailExist = await User.find({ email: data.email });
+
+  if (!doEmailExist) {
+    throw new Error("user does not exist");
+  }
+  if (doEmailExist.length === 0) {
+    throw new Error("user does not exist");
+  }
+  const otp = otpGenerate();
+  await sendMail(data.email, otp);
+  return 
+
+};
+
+export default { register, login, forgetPassword };
